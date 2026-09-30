@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "escriptorium-engine-openai-api-compatible"
+version = "0.1.0"
+description = "Vision-language models behind an OpenAI-compatible API as an eScriptorium engine"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.28",
+    "Pillow",
+]
+
+# This is the whole integration. Installing the package makes the engine appear in eScriptorium;
+# there is no registration step and no eScriptorium file to edit.
+[project.entry-points."escriptorium.engines"]
+openai-api-compatible = "escriptorium_engine_openai_api_compatible:OpenAIAPICompatibleEngine"
+
+[tool.setuptools]
+packages = ["escriptorium_engine_openai_api_compatible"]
