@@ -20,20 +20,60 @@ reference: that string is stored in the database and shown in the interface.
 ## Install
 
 This is a plugin: it installs *into* an eScriptorium environment. Unlike an engine that runs a model
-locally, it brings nothing heavy — the computation happens on the far side of an HTTP call, so the
-dependencies are `requests` and Pillow.
+locally, it brings nothing heavy — the computation happens on the far side of an HTTP call.
+
+### Expected in the environment
+
+pip installs `requests` and Pillow, both of which eScriptorium already has. Everything else has to be
+there already:
+
+- eScriptorium **with the engine layer**, i.e. the `feature/engine-layer-upstream` branch of
+  [gitlab.com/adibender-gitlab/escriptorium](https://gitlab.com/adibender-gitlab/escriptorium/-/tree/feature/engine-layer-upstream).
+  That is where the contract this package imports (`engines.base`) lives; upstream eScriptorium does
+  not read the `escriptorium.engines` entry point group yet, so the engine would install there but
+  never appear. The same applies to the image you build on: use one built from that branch.
+- Python ≥ 3.10.
+- an **OpenAI-compatible server** (Ollama, vLLM, LM Studio, llama.cpp, …) serving a vision-language
+  model, **reachable from the worker containers** (see below).
+- for endpoints that require a key: `ESCRIPTORIUM_OPENAI_API_KEY` in the environment of the worker
+  containers.
+
+### With Docker (recommended)
 
 ```sh
 # BASE_IMAGE defaults to escriptorium-engines:latest, so one image can carry several engines.
-docker build --build-arg BASE_IMAGE=registry.gitlab.com/scripta/escriptorium:latest \
+docker build --build-arg BASE_IMAGE=<an eScriptorium image with the engine layer> \
              -t escriptorium-engines:latest .
 ```
 
-Point the app containers at the image, then **restart them**. Entry points are read when a process
-starts, so a container that is already running never notices a newly installed engine.
+Then point the app containers at the image.
 
-Verify: `GET /api/engines/` lists `openai-api-compatible`, and *OpenAI-compatible API* appears in the
+### With pip, from GitHub
+
+Inside an eScriptorium environment that already has everything listed above:
+
+```sh
+pip install "git+https://github.com/adibender/escriptorium-engine-openai-api-compatible"
+pip check
+```
+
+Append `@<commit>` or `@<tag>` to the URL to pin a version.
+
+From a local checkout, `pip install -e .` does the same.
+
+### Restart
+
+**Restart every app container after installing**, including the celery workers (`web`,
+`celery-main`, `celery-gpu`, `celery-intensive-inference`). Entry points are read when a process
+starts, so a container that is already running never notices a newly installed engine. The same
+holds after upgrading or uninstalling the package.
+
+### Verify
+
+`GET /api/engines/` lists `openai-api-compatible`, and *OpenAI-compatible API* appears in the
 Transcribe dialog.
+
+### Reachability
 
 **The endpoint must be reachable from the worker containers**, which is not the same as being
 reachable from the host. Ollama, for instance, listens on `127.0.0.1` by default, so a container on
